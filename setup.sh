@@ -8,10 +8,11 @@
 TIMEZONE_NEW="GMT"
 ROOT_EMAIL='admin@'$(hostname)
 SSH_PORT="9853"
-
+SSH_KEY_PASSPHRASE=""
 DISABLE_IPV6="yes"
 ALLOW_SSH_ROOT_LOGIN="no"
 VERBOSE_BOOT="no"
+RUBYVERSION="ruby-1.9.3-p362"
 
 # --- Installation options ---
 
@@ -253,6 +254,18 @@ function stop_service() {
   chkconfig $SERVICE_NAME off 2>> setup.log.debug 1>> setup.log
 }
 
+# Compile and install Ruby
+function install_ruby() {
+  cd 
+  wget -O - http://ftp.ruby-lang.org/pub/ruby/1.9/$RUBYVERSION.tar.gz | tar -xzvf -
+  chown -R 0:0 $RUBYVERSION/
+  cd $RUBYVERSION
+  chmod +x ./configure
+  ./configure
+  make
+  make install
+	cd .. && rm -rf $RUBYVERSION
+}
 
 # === Pre-Flight ===
 
@@ -363,8 +376,15 @@ for php_rpm in $(rpm -qa | grep php); do rpm -e $php_rpm --nodeps; done
 yumq "-y install mysqlclient16 mysql55-libs --enablerepo=ius" # Needed by postfix later
 
 # --- Base Repositories ---
-yellowheader " - Development tools"
+yellowheader " - Development tools and libraries"
 yum -y groupinstall "Development Tools" 2>> setup.log.debug 1>> setup.log # Couldn't figure out escaping strings...
+yumq "-y install vim-enhanced httpd readline readline-devel ncurses-devel gdbm-devel glibc-devel \
+tcl-devel openssl-devel curl-devel expat-devel db4-devel byacc \
+sqlite-devel gcc-c++ libyaml libyaml-devel libffi libffi-devel \
+libxml2 libxml2-devel libxslt libxslt-devel libicu libicu-devel \
+system-config-firewall-tui python-devel redis sudo wget \
+crontabs logwatch logrotate sendmail-cf qtwebkit qtwebkit-devel \
+perl-Time-HiRes"
 
 yellowheader " - Basic packages"
 yumq "-y install $LIST_PACKAGES_BASIC"
@@ -534,6 +554,10 @@ if [ "$VERBOSE_BOOT" == "yes" ]; then
   sed -i 's/rhgb\|quiet//g' /boot/grub/grub.conf &> /dev/null
 fi
 
+yellowheader " - Generating SSH keys"
+ssh-keygen -q -N "$SSH_KEY_PASSPHRASE" -t rsa -f ~/.ssh/id_rsa
+ssh-keygen -q -N "$SSH_KEY_PASSPHRASE" -t dsa -f ~/.ssh/id_dsa
+
 yellowheader " - Updating mlocate"
 updatedb
 
@@ -553,5 +577,4 @@ cyanheader   "+ Please do the following NOW:
   - Set up MySQL if installed. Here's a password: $PASSWORD_MYSQL
   - Copy the AIDE files (/var/lib/aide) to a secure location
   - Change your root password. Suggestion: $PASSWORD_ROOT
-  - Generate root's SSH keys
 + REBOOT when you're done!\n"
