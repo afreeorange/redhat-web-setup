@@ -1,51 +1,17 @@
 #!/bin/bash
 
-TIMEZONE_NEW="America/Chicago"
-ROOT_EMAIL='admin@'$(hostname)
-DISABLE_IPV6="yes"
-
-###### STOP EDITING! ######
-
 # Setup script for RHEL-based distros 
 # Compatible with 5.x & 6.x releases
 # Assumes a "minimal" install
 # Nikhil Anand <nikhil@mantralay.org>
 
-# Color!
-function redheader()    { echo -e "\E[31m$1"; tput sgr0; }
-function greenheader()  { echo -e "\E[32m$1"; tput sgr0; }
-function yellowheader() { echo -e "\E[33m$1"; tput sgr0; }
-function blueheader()   { echo -e "\E[34m$1"; tput sgr0; }
-function cyanheader()   { echo -e "\E[36m$1"; tput sgr0; }
+TIMEZONE_NEW="America/Chicago"
+ROOT_EMAIL='admin@'$(hostname)
+SSH_PORT="9853"
 
-# Decent, random passwords
-function generate_password() {
-  echo $(tr -dc A-Za-z0-9_ < /dev/urandom | head -c 20 | xargs) 
-}
-
-# Keep installs quiet
-function yumq() {
-  COMMAND=$1
-  yum $COMMAND 2> setup.debug 1> setup.log 
-}
-function rpm_install() {
-  RESOURCE=$1
-  rpm -ivh $RESOURCE 2> setup.debug 1> setup.log
-}
-
-# Start & stop services
-function start_service() {
-  SERVICE_NAME=$1
-  echo -e "Starting $SERVICE_NAME"
-  service $SERVICE start 2>> setup.debug 1>> setup.log
-  chkconfig $SERVICE on 2>> setup.debug 1>> setup.log
-}
-function stop_service() {
-  SERVICE_NAME=$1
-  echo -e "Stopping $SERVICE_NAME"
-  service $SERVICE stop 2>> setup.debug 1>> setup.log
-  chkconfig $SERVICE stop 2>> setup.debug 1>> setup.log
-}
+DISABLE_IPV6="yes"
+ALLOW_SSH_ROOT_LOGIN="no"
+VERBOSE_BOOT="yes"
 
 # === Lists ===
 
@@ -80,6 +46,11 @@ LIST_SERVICES_ON="
 crond
 ntpd
 iptables
+mysqld
+httpd
+nginx
+mongod
+postgresql-9.1
 "
 
 LIST_SERVICES_OFF="
@@ -226,10 +197,48 @@ postgresql91-libs
 postgresql91-server
 "
 
-PASSWORD_MYSQL=$(generate_password)
-PASSWORD_ROOT=$(generate_password)
+###### STOP EDITING! ######
+
+# Color!
+function redheader()    { echo -e "\E[31m$1"; tput sgr0; }
+function greenheader()  { echo -e "\E[32m$1"; tput sgr0; }
+function yellowheader() { echo -e "\E[33m$1"; tput sgr0; }
+function blueheader()   { echo -e "\E[34m$1"; tput sgr0; }
+function cyanheader()   { echo -e "\E[36m$1"; tput sgr0; }
+
+# Decent, random passwords
+function generate_password() {
+  echo $(tr -dc A-Za-z0-9_ < /dev/urandom | head -c 20 | xargs) 
+}
+
+# Keep installs quiet
+function yumq() {
+  COMMAND=$1
+  yum $COMMAND 2> setup.debug 1> setup.log 
+}
+function rpm_install() {
+  RESOURCE=$1
+  rpm -ivh $RESOURCE 2> setup.debug 1> setup.log
+}
+
+# Start & stop services
+function start_service() {
+  SERVICE_NAME=$1
+  echo -e "Starting $SERVICE_NAME"
+  service $SERVICE_NAME start 2> setup.debug 1> setup.log
+  chkconfig $SERVICE_NAME on 2> setup.debug 1> setup.log
+}
+function stop_service() {
+  SERVICE_NAME=$1
+  echo -e "SERVICE_NAME $SERVICE_NAME"
+  service $SERVICE_NAME stop 2> setup.debug 1> setup.log
+  chkconfig $SERVICE_NAME stop 2> setup.debug 1> setup.log
+}
 
 # === Pre-Flight ===
+
+PASSWORD_MYSQL=$(generate_password)
+PASSWORD_ROOT=$(generate_password)
 
 # --- Check for superuser ---
 if [[ $(/usr/bin/id -u) -ne 0 ]]; then
@@ -257,6 +266,10 @@ sed -ie 's/SELINUX=.*/SELINUX=disabled/g' /etc/sysconfig/selinux
 if [ $VERSION_MAJOR == 6 ]; then
   sed -ie 's/SELINUX=.*/SELINUX=disabled/g' /etc/selinux/config
 fi
+
+# --- Stop firewall ---
+greenheader  "+ Stopping firewall service temporarily"
+service iptables stop &> /dev/null
 
 # --- Update system ---
 greenheader  "+ Updating system"
@@ -344,8 +357,10 @@ fi
 yellowheader " - MongoDB"
 yumq "-y install mongo-10gen mongo-10gen-server --enablerepo=10gen"
 
+if [ "$INSTALL_POSTGRES" == "yes" ]; then
 yellowheader " - PostgreSQL 9 Repo"
 yumq "-y install $LIST_PACKAGES_POSTGRES --enablerepo=pgdg91"
+fi
 
 yellowheader " - Nginx"
 yumq "-y install nginx --enablerepo=nginx"
@@ -379,6 +394,18 @@ echo "tmpfs /dev/shm tmpfs rw,noexec,nosuid 0 0" >> /etc/fstab
 yellowheader " - Setting root alias"
 sed -i 's/#root:\s*marc/root:\t\t'"${ROOT_EMAIL}"'/g' /etc/aliases
 
+if [ "$SSH_PORT" != "22" ]; then
+  yellowheader " - Changing SSH port"
+  sed -i 's/#Port/Port/' /etc/ssh/sshd_config
+  sed -i 's/Port.*/Port 9853/' /etc/ssh/sshd_config
+fi
+
+if [ "$ALLOW_SSH_ROOT_LOGIN" == "yes" ]; then
+  yellowheader " - Disabling root login"
+  sed -i 's/#PermitRootLogin/PermitRootLogin/' /etc/ssh/sshd_config
+  sed -i 's/PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+fi
+
 yellowheader " - AIDE"
 aide --init 2> setup.debug 1> setup.log
 mv /var/lib/aide/{aide.db.new.gz,aide.db.gz}
@@ -396,6 +423,9 @@ if [ $VERSION_MAJOR == 5 ]; then
 else
   sed -i 's/^exec/# exec/' /etc/init/control-alt-delete.conf 
 fi
+
+yellowheader " - Configuring Apache"
+sed 's/ServerSignature On/ServerSignature Off' /etc/httpd/conf/httpd.conf
 
 if [ "$DISABLE_IPV6" == "yes" ]; then
   yellowheader " - Disabling IPV6"
@@ -441,14 +471,19 @@ for SERVICE in $LIST_SERVICES_ON; do start_service $SERVICE; done
 yellowheader " - Unnecessary services"
 for SERVICE in $LIST_SERVICES_OFF; do stop_service $SERVICE; done
 
+if [ "$VERBOSE_BOOT" == "yes" ]; then
+  yellowheader " - Making bootup more verbose"
+  sed -i 's/rhgb\|quiet//g' /boot/grub/grub.conf
+fi
+
 yellowheader " - Updating mlocate"
 updatedb
 
 blueheader   "* All done!"
 cyanheader   "* All operations complete. Please do the following NOW:
-  ~ Change your SSH port
   ~ Set up a firewall
-  ~ Set up MySQL. Here's a password: $MYSQL_PASSWORD
+    Make sure you allow the SSH port you've chosen!
+  ~ Set up MySQL if installed. Here's a password: $MYSQL_PASSWORD
   ~ Copy the AIDE files (/var/lib/aide) to a secure location
   ~ Change your root password. Suggestion: $PASSWORD_ROOT
   ~ Generate your SSH keys

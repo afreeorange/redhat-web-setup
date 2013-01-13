@@ -8,8 +8,8 @@ Please edit the first few lines of the script to configure some options.
 
 == Defaults ==
 
-* Timezone is set to GMT.
-* IPV6 is disabled.
+* Timezone is set to GMT
+* IPV6 is disabled
 * Root email is sent to admin@(your hostname)
 * SSH
 ** Root login is disabled
@@ -28,13 +28,13 @@ The script installs and uses these repositories ''selectively''. For example, IU
 
 == Packages Installed ==
 
-* Languages: Python 2.7 & 3.1 or 3.3, PHP 5.4, Ruby 1.9.3, Perl 5.10
+* Languages: Python 2.6 & 3.1 or 3.3, PHP 5.4, Ruby 1.9.3, Perl 5.10
 * Databases: MongoDB 2.2, MySQL 5.5
-* Monitoring utilities: htop, ntop, iotop, ncdu
-* Source Control: Subversion, git 
-* Archival: zip, rar, pbzip 
-* Security: rkhunter, AIDE, bcrypt, scrypt, Suhosin
-* Miscellaneous: ack, byobu, tree, mlocate, vim, yum-utils, rsync 3, vsftpd
+* Monitoring utilities: htop, ntop, iotop, ncdu, sysstat, iftop
+* Source Control: Subversion, git, cvs
+* Archival: zip, rar, pbzip2 
+* Security: rkhunter, AIDE, bcrypt, Suhosin
+* Miscellaneous: ack, byobu, tree, siege, mlocate, pv, vim, yum-utils, multitail, bash-completion, puppet, bcrypt
 * Development libraries and tools
 * The Apache and Nginx web servers
 
@@ -44,31 +44,14 @@ Disabled for now. I'm sure it's awesome. [https://github.com/nmoureyii/centos-se
 
 == Services ==
 
-SSH, VsFTPd, NTPD, Apache, and MySQL are installed and started. 
+SSH, NTPD, Nginx, MongoDB, Apache, and MySQL are installed and started. 
 
-=== NTP ===
+=== Notes ===
 
-* A few servers [http://infohost.nmt.edu/~armiller/timeserv.htm off this page] are used. 
-
-=== SSH ===
-
-* SSH port is set to *9853* (RHEL = 18-8-5-12)
-* The IPtables service is halted, but will start after reboot
-* ''Root login is disallowed''! 
-
-=== Apache ===
-
-* Server banner is disabled.
-* http://www.techrepublic.com/article/solutionbase-10-tips-for-securing-apache/159903
-
-=== MySQL ===
-
-* Remote access is disabled.  Root password is <code>aYkGMf+4L16f01v_y2AX</code>
-
-== Tools ==
-
-* [http://www.idontplaydarts.com/2011/02/hardening-and-securing-php-on-linux/ PHP Auditor]
-* http://security.stackexchange.com/questions/9948/how-to-secure-a-dedicated-linux-server-running-a-lamp-stack-for-commercial-e-coms
+* NTP used a few servers [http://infohost.nmt.edu/~armiller/timeserv.htm off this page]. 
+* SSH port is set to '''9853''' (RHEL = 18-8-5-12)
+* ''Root login via SSH is disallowed''!
+* Apache server banner is disabled.
 
 == License ==
 
