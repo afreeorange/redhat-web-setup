@@ -58,7 +58,6 @@ nginx.repo
 LIST_SERVICES_ON="
 crond
 httpd
-iptables
 mongod
 mysqld
 nginx
@@ -143,6 +142,8 @@ iotop
 multitail
 ncdu
 ntop
+p7zip
+p7zip-plugins
 pbzip2
 puppet
 rkhunter
@@ -211,12 +212,16 @@ postgresql91-server
 
 ###### STOP EDITING! ######
 
+DASHES1="=============================="
+DASHES2="------------------------------"
+DASHES3="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
 # Color!
-function redheader()    { echo -e "\E[31m$1"; tput sgr0; }
-function greenheader()  { echo -e "\E[32m$1"; tput sgr0; }
-function yellowheader() { echo -e "\E[33m$1"; tput sgr0; }
-function blueheader()   { echo -e "\E[34m$1"; tput sgr0; }
-function cyanheader()   { echo -e "\E[36m$1"; tput sgr0; }
+function redheader()    { echo -e "\n$1\n$DASHES3\n" >> setup.log.debug; echo -e "\E[31m$1"; tput sgr0; }
+function greenheader()  { echo -e "\n$1\n$DASHES1\n" >> setup.log; echo -e "\E[32m$1"; tput sgr0; }
+function yellowheader() { echo -e "\n$1\n$DASHES2\n" >> setup.log; echo -e "\E[33m$1"; tput sgr0; }
+function cyanheader()   { echo -e "\n$1\n$DASHES1\n" >> setup.log; echo -e "\E[36m$1"; tput sgr0; }
+function blueheader()   { echo -e "\n$1\n$DASHES2\n" >> setup.log; echo -e "\E[34m$1"; tput sgr0; }
 
 # Decent, random passwords
 function generate_password() {
@@ -226,26 +231,26 @@ function generate_password() {
 # Keep installs quiet
 function yumq() {
   COMMAND=$1
-  yum $COMMAND 2> setup.debug 1> setup.log 
+  yum $COMMAND 2>> setup.log.debug 1>> setup.log 
 }
 function rpm_install() {
   RESOURCE=$1
 
   # Can't do rpm -ivh with RPMforge or PGDG; have to download first
   wget --quiet --tries=3 -P /tmp $RESOURCE
-  rpm -ivh /tmp/$(basename $RESOURCE) 2> setup.debug 1> setup.log
+  rpm -ivh /tmp/$(basename $RESOURCE) 2>> setup.log.debug 1>> setup.log
 }
 
 # Start & stop services
 function start_service() {
   SERVICE_NAME=$1
-  service $SERVICE_NAME start 2> setup.debug 1> setup.log
-  chkconfig $SERVICE_NAME on 2> setup.debug 1> setup.log
+  service $SERVICE_NAME start 2>> setup.log.debug 1>> setup.log
+  chkconfig $SERVICE_NAME on 2>> setup.log.debug 1>> setup.log
 }
 function stop_service() {
   SERVICE_NAME=$1
-  service $SERVICE_NAME stop 2> setup.debug 1> setup.log
-  chkconfig $SERVICE_NAME off 2> setup.debug 1> setup.log
+  service $SERVICE_NAME stop 2>> setup.log.debug 1>> setup.log
+  chkconfig $SERVICE_NAME off 2>> setup.log.debug 1>> setup.log
 }
 
 
@@ -298,9 +303,9 @@ service iptables stop &> /dev/null
 greenheader  "+ Updating system"
 yumq "-y update yum python rpm"
 yumq "-y install wget curl"
-# yumq "clean all"
-# yumq "-y update"
-# yumq "clean all"
+yumq "clean all"
+yumq "-y update"
+yumq "clean all"
 
 
 # === Install Additional Repositories ===
@@ -358,7 +363,7 @@ yumq "-y install mysqlclient16 mysql55-libs --enablerepo=ius" # Needed by postfi
 
 # --- Base Repositories ---
 yellowheader " - Development tools"
-yum -y groupinstall "Development Tools" 2> setup.debug 1> setup.log # Couldn't figure out escaping strings...
+yum -y groupinstall "Development Tools" 2>> setup.log.debug 1>> setup.log # Couldn't figure out escaping strings...
 
 yellowheader " - Basic packages"
 yumq "-y install $LIST_PACKAGES_BASIC"
@@ -371,40 +376,43 @@ yumq "-y install $LIST_PACKAGES_REPOFORGE --enablerepo=rpmforge"
 if [ "$INSTALL_BASIC_ONLY" == "no" ]; then
 
   if [ "$INSTALL_APACHE" == "yes" ]; then
-    yellowheader " - Apache"
+    yellowheader "   Apache"
     yumq "-y install httpd"
     sed -i 's/ServerSignature On/ServerSignature Off/' /etc/httpd/conf/httpd.conf
+    echo "Hello." >> /var/www/html/index.html
   fi
 
   if [ "$INSTALL_PHP_MYSQL" == "yes" ]; then
-    yellowheader " - PHP & MySQL"
+    yellowheader "   PHP & MySQL"
     yumq "-y install $LIST_PACKAGES_MYSQL --enablerepo=ius"
     yumq "-y install $LIST_PACKAGES_PHP --enablerepo=ius"
   fi
 
   if [ "$INSTALL_MONGODB" == "yes" ]; then
-    yellowheader " - MongoDB"
+    yellowheader "   MongoDB"
     yumq "-y install mongo-10gen mongo-10gen-server --enablerepo=10gen"
   fi
 
   if [ "$INSTALL_POSTGRES" == "yes" ]; then
-    yellowheader " - PostgreSQL 9 Repo"
+    yellowheader "   PostgreSQL 9 Repo"
     yumq "-y install $LIST_PACKAGES_POSTGRES --enablerepo=pgdg91"
   fi
 
   if [ "$INSTALL_NGINX" == "yes" ]; then
-    yellowheader " - Nginx"
+    yellowheader "   Nginx"
     yumq "-y install nginx --enablerepo=nginx"
+    cp /etc/nginx/conf.d/default.conf{,.original}
+    sed -i 's/listen.*80/listen 8888/' /etc/nginx/conf.d/default.conf
   fi
 
 else
-  yellowheader " - PHP"
+  yellowheader "   PHP"
   yumq "-y install php54 php54-cli --enablerepo=ius"
 
 fi
 
 if [ "$INSTALL_PYTHON3" == "yes" ]; then
-  yellowheader " - Python 3"
+  yellowheader "   Python 3"
   if [ $VERSION_MAJOR == 5 ]; then
     yumq "-y install $LIST_PACKAGES_PYTHON31 --enablerepo=ius" 
   else
@@ -457,12 +465,12 @@ if [ "$ALLOW_SSH_ROOT_LOGIN" == "yes" ]; then
 fi
 
 yellowheader " - AIDE"
-aide --init 2> setup.debug 1> setup.log
+aide --init 2>> setup.log.debug 1>> setup.log
 mv /var/lib/aide/{aide.db.new.gz,aide.db.gz}
 
 yellowheader " - Rootkit Hunter"
 echo -e "PKGMGR=RPM" >> /etc/rkunter.conf
-rkhunter --propupd 2>> setup.debug 1>> setup.log
+rkhunter --propupd 2>> setup.log.debug 1>> setup.log
 
 yellowheader " - Postfix as default MTA"
 ln -s /usr/sbin/sendmail.postfix /etc/alternatives/mta --force
@@ -530,13 +538,19 @@ updatedb
 
 yellowheader " - Cleaning up"
 rm -f /tmp/*.rpm
+chkconfig iptables on
 
-blueheader   "* All done!"
-cyanheader   "* All operations complete. Please do the following NOW:
-  ~ Set up a firewall
-    Make sure you allow the SSH port you've chosen (port $SSH_PORT)!
-  ~ Set up MySQL if installed. Here's a password: $MYSQL_PASSWORD
-  ~ Copy the AIDE files (/var/lib/aide) to a secure location
-  ~ Change your root password. Suggestion: $PASSWORD_ROOT
-  ~ Generate root's SSH keys
-* Reboot when you're done\n"
+# I got lazy here...
+LISTENING_PORTS=$(netstat -tln | awk '{print $4}' | grep '^0.*' | cut -d: -f2 | sort | tr '\n' ' ')
+
+blueheader   "+ All done!"
+cyanheader   "+ Please do the following NOW:
+  - Configure your firewall
+    ~ Make sure you allow the SSH port you've chosen (port $SSH_PORT)!
+    ~ Your applications are listening on the following ports: 
+      $LISTENING_PORTS
+  - Set up MySQL if installed. Here's a password: $PASSWORD_MYSQL
+  - Copy the AIDE files (/var/lib/aide) to a secure location
+  - Change your root password. Suggestion: $PASSWORD_ROOT
+  - Generate root's SSH keys
++ Reboot when you're done\n"

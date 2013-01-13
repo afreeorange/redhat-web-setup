@@ -6,12 +6,14 @@ __NOTOC__
 
 A quick setup script for Red Hat-based distros I use for my servers. Compatible with 5.x and 6.x releases. Script assumes a base/minimal vanilla install. 
 
-Please edit the first few lines of the script to configure some options. If <code>INSTALL_BASIC_ONLY</code> is set to "yes", the script sets up
+Please edit the first few lines of the script to configure some options. If <code>INSTALL_BASIC_ONLY</code> is set to "yes", the script sets up:
 
 * Quite a few useful tools, languages, libraries, and services
-* Some external repositories, which are disabled (i.e., <code>enabled=0</code>)
+* Many external repositories, which are only enabled for certain packages
 
-Set <code>INSTALL_BASIC_ONLY</code> to "no" to install a LAMP stack, Nginx, and MongoDB.
+Set <code>INSTALL_BASIC_ONLY</code> to "no" to install a LAMP stack, Nginx, and MongoDB. 
+
+Output is appended to <code>setup.log</code>. Errors are sent to <code>setup.log.debug</code>
 
 == Defaults ==
 
@@ -20,12 +22,13 @@ Set <code>INSTALL_BASIC_ONLY</code> to "no" to install a LAMP stack, Nginx, and 
 * Root email is sent to admin@(server hostname)
 * For SSH:
 ** Root login is disabled
-** Port is set to 9853
-* NTP uses a few servers [http://infohost.nmt.edu/~armiller/timeserv.htm off this page]. 
+** Port is set to 9853 (RHEL = 18-8-5-12)
+* NTP uses a few servers [http://infohost.nmt.edu/~armiller/timeserv.htm off this page]
+* Nginx default port is set to '''8888'''
 
 == External Repositories ==
 
-The script installs and uses many external repositories ''selectively''. For example, IUS is only ever used for PHP 5.4+ and MySQL 5.5+. They are all disabled (i.e., <code>enabled=0</code>) after they're installed.
+The script installs and uses many external repositories ''selectively''. For example, IUS is only ever used for PHP 5.4+ and MySQL 5.5+. They are all disabled (i.e., <code>enabled=0</code> in corresponding <code>.repo</code> files) after they're installed.
 
 * [http://fedoraproject.org/wiki/EPEL EPEL]
 * [http://repoforge.org/ RepoForge]
@@ -36,17 +39,17 @@ The script installs and uses many external repositories ''selectively''. For exa
 
 == Packages Installed ==
 
-Basic Packages
+=== Basic Packages ===
 
 * Languages: Python 2.6 & 3.1 or 3.3, PHP 5.4, Ruby 1.9.3, Perl 5.10, Java 1.7 (OpenJDK)
 * Monitoring utilities: htop, ntop, iotop, ncdu, sysstat, iftop, iptraf
 * Source Control: Subversion, git, cvs
-* Archival: zip, rar, pbzip2 
+* Archival: zip, rar, pbzip2, 7-zip
 * Security: rkhunter, AIDE, bcrypt, Suhosin for PHP
 * Miscellaneous: ack, byobu, tree, siege, mlocate, pv, vim, yum-utils, multitail, bash-completion, puppet, bcrypt, and many more
 * Development libraries and tools
 
-Other packages
+=== Additional packages ===
 
 * Databases: MongoDB 2.2, MySQL 5.5, and PostgreSQL 9.1
 * The Apache (2.2) and Nginx (2.2) web servers
