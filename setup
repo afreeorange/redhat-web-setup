@@ -2,10 +2,10 @@
 
 # Setup script for RHEL-based distros 
 # Compatible with 5.x & 6.x releases
-# Assumes a "minimal" install
+# Assumes a base/minimal install
 # Nikhil Anand <nikhil@mantralay.org>
 
-TIMEZONE_NEW="America/Chicago"
+TIMEZONE_NEW="GMT"
 ROOT_EMAIL='admin@'$(hostname)
 SSH_PORT="9853"
 
@@ -13,10 +13,34 @@ DISABLE_IPV6="yes"
 ALLOW_SSH_ROOT_LOGIN="no"
 VERBOSE_BOOT="yes"
 
+# --- Installation options ---
+
+INSTALL_BASIC_ONLY="no"
+
+# Options used only if the above is set to "no"
+INSTALL_APACHE="yes"
+INSTALL_MONGODB="yes"
+INSTALL_NGINX="yes"
+INSTALL_PHP_MYSQL="yes"
+INSTALL_POSTGRES="no"
+INSTALL_PYTHON3="yes"
+
+
 # === Lists ===
 
+LIST_NTP_SERVERS="
+time.nist.gov
+ns.arc.nasa.gov
+tick.usno.navy.mil
+tock.usno.navy.mil
+bernina.ethz.ch
+ntp.cuhk.edu.hk
+ntp.syd.dms.csiro.au
+ntps1.pads.ufrj.br
+"
+
 LIST_REPO_KEYS="
-RPM-GPG-KEY-EPEL-*
+RPM-GPG-KEY-EPEL*
 IUS-COMMUNITY-GPG-KEY
 RPM-GPG-KEY-rpmforge-dag
 RPM-GPG-KEY-PGDG-91
@@ -31,25 +55,14 @@ pgdg-91-redhat.repo
 nginx.repo
 "
 
-LIST_NTP_SERVERS="
-time.nist.gov
-ns.arc.nasa.gov
-tick.usno.navy.mil
-tock.usno.navy.mil
-bernina.ethz.ch
-ntp.cuhk.edu.hk
-ntp.syd.dms.csiro.au
-ntps1.pads.ufrj.br
-"
-
 LIST_SERVICES_ON="
 crond
-ntpd
-iptables
-mysqld
 httpd
-nginx
+iptables
 mongod
+mysqld
+nginx
+ntpd
 postgresql-9.1
 "
 
@@ -89,9 +102,9 @@ cronie-anacron
 crontabs
 curl
 cvs
-httpd
+db4
+db4-utils
 ImageMagick
-ImageMagick-devel
 iptraf
 java-1.7.0-openjdk
 lsof
@@ -183,7 +196,6 @@ tkinter31
 LIST_PACKAGES_PYTHON32="
 python32
 python32-libs
-python32-mod_wsgi
 python32-tkinter
 python32-tools
 "
@@ -218,27 +230,38 @@ function yumq() {
 }
 function rpm_install() {
   RESOURCE=$1
-  rpm -ivh $RESOURCE 2> setup.debug 1> setup.log
+
+  # Can't do rpm -ivh with RPMforge or PGDG; have to download first
+  wget --quiet --tries=3 -P /tmp $RESOURCE
+  rpm -ivh /tmp/$(basename $RESOURCE) 2> setup.debug 1> setup.log
 }
 
 # Start & stop services
 function start_service() {
   SERVICE_NAME=$1
-  echo -e "Starting $SERVICE_NAME"
   service $SERVICE_NAME start 2> setup.debug 1> setup.log
   chkconfig $SERVICE_NAME on 2> setup.debug 1> setup.log
 }
 function stop_service() {
   SERVICE_NAME=$1
-  echo -e "SERVICE_NAME $SERVICE_NAME"
   service $SERVICE_NAME stop 2> setup.debug 1> setup.log
-  chkconfig $SERVICE_NAME stop 2> setup.debug 1> setup.log
+  chkconfig $SERVICE_NAME off 2> setup.debug 1> setup.log
 }
+
 
 # === Pre-Flight ===
 
 PASSWORD_MYSQL=$(generate_password)
 PASSWORD_ROOT=$(generate_password)
+
+if [ "$INSTALL_BASIC_ONLY" == "yes" ]; then
+  INSTALL_APACHE="no"
+  INSTALL_MONGODB="no"
+  INSTALL_NGINX="no"
+  INSTALL_PHP_MYSQL="no"
+  INSTALL_POSTGRES="no"
+  INSTALL_PYTHON3="yes"
+fi
 
 # --- Check for superuser ---
 if [[ $(/usr/bin/id -u) -ne 0 ]]; then
@@ -275,12 +298,12 @@ service iptables stop &> /dev/null
 greenheader  "+ Updating system"
 yumq "-y update yum python rpm"
 yumq "-y install wget curl"
-yumq "clean all"
-yumq "-y update"
-yumq "clean all"
+# yumq "clean all"
+# yumq "-y update"
+# yumq "clean all"
 
 
-# === Additional Repository Configuration ===
+# === Install Additional Repositories ===
 
 greenheader  "+ Installing additional repositories"
 yellowheader " - EPEL"
@@ -312,8 +335,10 @@ rpm_install http://yum.postgresql.org/9.1/redhat/rhel-$VERSION_MAJOR-$ARCH/pgdg-
 yellowheader " - Nginx Repo"
 rpm_install http://nginx.org/packages/centos/$VERSION_MAJOR/noarch/RPMS/nginx-release-centos-$VERSION_MAJOR-0.el$VERSION_MAJOR.ngx.noarch.rpm
 
-greenheader  "+ Configuring repositories"
 
+# === Configure Repositories ===
+
+greenheader  "+ Configuring repositories"
 yellowheader " - Importing keys"
 for GPG_KEY in $LIST_REPO_KEYS; do rpm --quiet --import /etc/pki/rpm-gpg/$GPG_KEY; done
 
@@ -327,7 +352,7 @@ greenheader  "+ Installing packages"
 
 # --- Remove older packages ---
 yellowheader " - Cleaning older packages"
-rpm -e --nodeps mysql-libs
+rpm -e --quiet --nodeps mysql-libs &> /dev/null
 for php_rpm in $(rpm -qa | grep php); do rpm -e $php_rpm --nodeps; done
 yumq "-y install mysqlclient16 mysql55-libs --enablerepo=ius" # Needed by postfix later
 
@@ -339,33 +364,58 @@ yellowheader " - Basic packages"
 yumq "-y install $LIST_PACKAGES_BASIC"
 
 # --- External Repositories ---
-yellowheader " - EPEL"
+yellowheader " - Additional packages from external repositories"
 yumq "-y install $LIST_PACKAGES_EPEL --enablerepo=epel"
-
-yellowheader " - RepoForge"
 yumq "-y install $LIST_PACKAGES_REPOFORGE --enablerepo=rpmforge"
 
-yellowheader " - IUS Community"
-yumq "-y install $LIST_PACKAGES_MYSQL --enablerepo=ius"
-yumq "-y install $LIST_PACKAGES_PHP --enablerepo=ius"
-if [ $VERSION_MAJOR == 5 ]; then
-  yumq "-y install $LIST_PACKAGES_PYTHON31 --enablerepo=ius" 
+if [ "$INSTALL_BASIC_ONLY" == "no" ]; then
+
+  if [ "$INSTALL_APACHE" == "yes" ]; then
+    yellowheader " - Apache"
+    yumq "-y install httpd"
+    sed -i 's/ServerSignature On/ServerSignature Off/' /etc/httpd/conf/httpd.conf
+  fi
+
+  if [ "$INSTALL_PHP_MYSQL" == "yes" ]; then
+    yellowheader " - PHP & MySQL"
+    yumq "-y install $LIST_PACKAGES_MYSQL --enablerepo=ius"
+    yumq "-y install $LIST_PACKAGES_PHP --enablerepo=ius"
+  fi
+
+  if [ "$INSTALL_MONGODB" == "yes" ]; then
+    yellowheader " - MongoDB"
+    yumq "-y install mongo-10gen mongo-10gen-server --enablerepo=10gen"
+  fi
+
+  if [ "$INSTALL_POSTGRES" == "yes" ]; then
+    yellowheader " - PostgreSQL 9 Repo"
+    yumq "-y install $LIST_PACKAGES_POSTGRES --enablerepo=pgdg91"
+  fi
+
+  if [ "$INSTALL_NGINX" == "yes" ]; then
+    yellowheader " - Nginx"
+    yumq "-y install nginx --enablerepo=nginx"
+  fi
+
 else
-  yumq "-y install $LIST_PACKAGES_PYTHON32 --enablerepo=ius" 
+  yellowheader " - PHP"
+  yumq "-y install php54 php54-cli --enablerepo=ius"
+
 fi
 
-yellowheader " - MongoDB"
-yumq "-y install mongo-10gen mongo-10gen-server --enablerepo=10gen"
+if [ "$INSTALL_PYTHON3" == "yes" ]; then
+  yellowheader " - Python 3"
+  if [ $VERSION_MAJOR == 5 ]; then
+    yumq "-y install $LIST_PACKAGES_PYTHON31 --enablerepo=ius" 
+  else
+    yumq "-y install $LIST_PACKAGES_PYTHON32 --enablerepo=ius" 
+  fi
 
-if [ "$INSTALL_POSTGRES" == "yes" ]; then
-yellowheader " - PostgreSQL 9 Repo"
-yumq "-y install $LIST_PACKAGES_POSTGRES --enablerepo=pgdg91"
+  if [ "$INSTALL_APACHE" == "yes" ]; then
+    yumq "-y install python3*-mod_wsgi --enablerepo=ius"
+  fi
 fi
 
-yellowheader " - Nginx"
-yumq "-y install nginx --enablerepo=nginx"
-
-# --- Miscellaneous ---
 yellowheader " - Miscellaneous"
 wget --tries=2 --quiet -O /usr/local/bin/ack http://betterthangrep.com/ack-standalone && chmod 755 /usr/local/bin/ack
 
@@ -419,13 +469,10 @@ ln -s /usr/sbin/sendmail.postfix /etc/alternatives/mta --force
 
 yellowheader " - Disabling ctrl+alt+del for shutdown"
 if [ $VERSION_MAJOR == 5 ]; then
-  sed 's/^ca::ctrlaltdel/#ca::ctrlaltdel/' /etc/inittab
+  sed -i 's/^ca::ctrlaltdel/#ca::ctrlaltdel/' /etc/inittab
 else
   sed -i 's/^exec/# exec/' /etc/init/control-alt-delete.conf 
 fi
-
-yellowheader " - Configuring Apache"
-sed 's/ServerSignature On/ServerSignature Off' /etc/httpd/conf/httpd.conf
 
 if [ "$DISABLE_IPV6" == "yes" ]; then
   yellowheader " - Disabling IPV6"
@@ -442,7 +489,6 @@ echo "NOZEROCONF=yes" >> /etc/sysconfig/network
 chkconfig auditd on
 authconfig --passalgo=sha512 --update
 
-
 # === Miscellaneous ===
 
 greenheader  "+ Wrapping up"
@@ -450,11 +496,14 @@ yellowheader " - Setting timezone to $TIMEZONE_NEW (was $TIMEZONE_CURRENT)"
 rm /etc/localtime
 ln -s /usr/share/zoneinfo/$TIMEZONE_NEW /etc/localtime
 
-yellowheader "  - Configuring NTP"
+yellowheader " - Create user homedirs if they don't exist"
+echo "session    required     pam_mkhomedir.so skel=/etc/skel/ umask=0022" >> /etc/pam.d/system-auth
+
+yellowheader " - Configuring NTP"
 sed -i 's/^server/#server/' /etc/ntp.conf
 for NTP_SERVER in $LIST_NTP_SERVERS; do echo "server "$NTP_SERVER >> /etc/ntp.conf; echo $NTP_SERVER >> /etc/ntp/step-tickers; done
 
-yellowheader " - Dressing up crontab"
+yellowheader " - Dressing up root's crontab"
 cat >> /var/spool/cron/root <<CRONTAB
 # +---------------- minute (0 - 59)
 # |  +------------- hour (0 - 23)
@@ -465,10 +514,10 @@ cat >> /var/spool/cron/root <<CRONTAB
 # *  *  *  *  *
 CRONTAB
 
-yellowheader " - Required services"
+yellowheader " - Starting required services"
 for SERVICE in $LIST_SERVICES_ON; do start_service $SERVICE; done
 
-yellowheader " - Unnecessary services"
+yellowheader " - Stopping unnecessary services"
 for SERVICE in $LIST_SERVICES_OFF; do stop_service $SERVICE; done
 
 if [ "$VERBOSE_BOOT" == "yes" ]; then
@@ -479,12 +528,15 @@ fi
 yellowheader " - Updating mlocate"
 updatedb
 
+yellowheader " - Cleaning up"
+rm -f /tmp/*.rpm
+
 blueheader   "* All done!"
 cyanheader   "* All operations complete. Please do the following NOW:
   ~ Set up a firewall
-    Make sure you allow the SSH port you've chosen!
+    Make sure you allow the SSH port you've chosen (port $SSH_PORT)!
   ~ Set up MySQL if installed. Here's a password: $MYSQL_PASSWORD
   ~ Copy the AIDE files (/var/lib/aide) to a secure location
   ~ Change your root password. Suggestion: $PASSWORD_ROOT
-  ~ Generate your SSH keys
+  ~ Generate root's SSH keys
 * Reboot when you're done\n"
