@@ -11,7 +11,7 @@ SSH_PORT="9853"
 
 DISABLE_IPV6="yes"
 ALLOW_SSH_ROOT_LOGIN="no"
-VERBOSE_BOOT="yes"
+VERBOSE_BOOT="no"
 
 # --- Installation options ---
 
@@ -289,9 +289,10 @@ TIMEZONE_CURRENT=$(grep -o -E '\".*\"' /etc/sysconfig/clock)
 
 # --- Disable SELinux ---
 greenheader  "+ Disabling SELinux"
-setenforce 0
-sed -ie 's/SELINUX=.*/SELINUX=disabled/g' /etc/sysconfig/selinux
-if [ $VERSION_MAJOR == 6 ]; then
+setenforce 0 2>> setup.log.debug 1>> setup.log
+if [ $VERSION_MAJOR == 5 ]; then
+  sed -ie 's/SELINUX=.*/SELINUX=disabled/g' /etc/sysconfig/selinux
+else
   sed -ie 's/SELINUX=.*/SELINUX=disabled/g' /etc/selinux/config
 fi
 
@@ -442,7 +443,7 @@ rm -rf /var/tmp
 ln -s /tmp /var/tmp
 
 yellowheader " - Securing /dev/shm"
-umount /dev/shm
+umount /dev/shm 
 rm -rf /dev/shm
 mkdir /dev/shm
 mount -t tmpfs -o rw,noexec,nosuid tmpfs /dev/shm
@@ -458,7 +459,7 @@ if [ "$SSH_PORT" != "22" ]; then
   sed -i 's/Port.*/Port 9853/' /etc/ssh/sshd_config
 fi
 
-if [ "$ALLOW_SSH_ROOT_LOGIN" == "yes" ]; then
+if [ "$ALLOW_SSH_ROOT_LOGIN" == "no" ]; then
   yellowheader " - Disabling root login"
   sed -i 's/#PermitRootLogin/PermitRootLogin/' /etc/ssh/sshd_config
   sed -i 's/PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
@@ -530,7 +531,7 @@ for SERVICE in $LIST_SERVICES_OFF; do stop_service $SERVICE; done
 
 if [ "$VERBOSE_BOOT" == "yes" ]; then
   yellowheader " - Making bootup more verbose"
-  sed -i 's/rhgb\|quiet//g' /boot/grub/grub.conf
+  sed -i 's/rhgb\|quiet//g' /boot/grub/grub.conf &> /dev/null
 fi
 
 yellowheader " - Updating mlocate"
@@ -553,4 +554,4 @@ cyanheader   "+ Please do the following NOW:
   - Copy the AIDE files (/var/lib/aide) to a secure location
   - Change your root password. Suggestion: $PASSWORD_ROOT
   - Generate root's SSH keys
-+ Reboot when you're done\n"
++ REBOOT when you're done!\n"

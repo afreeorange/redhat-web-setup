@@ -22,7 +22,7 @@ Output is appended to <code>setup.log</code>. Errors are sent to <code>setup.log
 * Root email is sent to admin@(server hostname)
 * For SSH:
 ** Root login is disabled
-** Port is set to 9853 (RHEL = 18-8-5-12)
+** Port is set to '''9853''' (RHEL = 18-8-5-12)
 * NTP uses a few servers [http://infohost.nmt.edu/~armiller/timeserv.htm off this page]
 * Nginx default port is set to '''8888'''
 
