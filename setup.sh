@@ -5,6 +5,8 @@
 # Assumes a base/minimal install
 # Nikhil Anand <nikhil@mantralay.org>
 
+# --- Installation options ---
+
 TIMEZONE_NEW="GMT"
 ROOT_EMAIL='admin@'$(hostname)
 SSH_PORT="9853"
@@ -13,8 +15,9 @@ DISABLE_IPV6="yes"
 ALLOW_SSH_ROOT_LOGIN="no"
 VERBOSE_BOOT="no"
 RUBYVERSION="ruby-1.9.3-p362"
+FAVORITE_EDITOR="vim"
 
-# --- Installation options ---
+# --- Package options ---
 
 INSTALL_BASIC_ONLY="no"
 
@@ -254,7 +257,7 @@ function stop_service() {
   chkconfig $SERVICE_NAME off 2>> setup.log.debug 1>> setup.log
 }
 
-# Compile and install Ruby
+# Compile and install Ruby (/tmp is noexec, so use home)
 function install_ruby() {
   cd 
   wget -O - http://ftp.ruby-lang.org/pub/ruby/1.9/$RUBYVERSION.tar.gz | tar -xzvf -
@@ -445,6 +448,9 @@ if [ "$INSTALL_PYTHON3" == "yes" ]; then
   fi
 fi
 
+yellowheader "   Ruby"
+install_ruby 2>> setup.log.debug 1>> setup.log 
+
 yellowheader " - Miscellaneous"
 wget --tries=2 --quiet -O /usr/local/bin/ack http://betterthangrep.com/ack-standalone && chmod 755 /usr/local/bin/ack
 
@@ -561,9 +567,10 @@ ssh-keygen -q -N "$SSH_KEY_PASSPHRASE" -t dsa -f ~/.ssh/id_dsa
 yellowheader " - Updating mlocate"
 updatedb
 
-yellowheader " - Cleaning up"
+yellowheader " - Miscellaneous"
 rm -f /tmp/*.rpm
 chkconfig iptables on
+echo "export EDITOR=$FAVORITE_EDITOR" >> ~/.bash_profile
 
 # I got lazy here...
 LISTENING_PORTS=$(netstat -tln | awk '{print $4}' | grep '^0.*' | cut -d: -f2 | sort | tr '\n' ' ')

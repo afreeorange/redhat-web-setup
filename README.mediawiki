@@ -11,7 +11,7 @@ Please edit the first few lines of the script to configure some options. If <cod
 * Quite a few useful tools, languages, libraries, and services
 * Many external repositories, which are only enabled for certain packages
 
-Set <code>INSTALL_BASIC_ONLY</code> to "no" to install a LAMP stack, Nginx, and MongoDB. 
+Setting <code>INSTALL_BASIC_ONLY</code> to "no" will install a LAMP stack, Nginx, and MongoDB. 
 
 Output is appended to <code>setup.log</code>. Errors are sent to <code>setup.log.debug</code>
 
@@ -19,6 +19,7 @@ Output is appended to <code>setup.log</code>. Errors are sent to <code>setup.log
 
 * Timezone is set to GMT; you'll want to change this
 * IPV6 is disabled
+* Default editor is vim
 * Root email is sent to admin@(server hostname)
 * For SSH:
 ** Root login is disabled
