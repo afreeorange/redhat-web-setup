@@ -16,6 +16,7 @@ ALLOW_SSH_ROOT_LOGIN="no"
 VERBOSE_BOOT="no"
 RUBYVERSION="ruby-1.9.3-p362"
 FAVORITE_EDITOR="vim"
+PEAR_DOWNLOAD_DIR="/root/pear"
 
 # --- Package options ---
 
@@ -176,6 +177,7 @@ php54-common
 php54-devel
 php54-gd
 php54-imap
+php54-intl
 php54-ldap
 php54-mbstring
 php54-mcrypt
@@ -189,6 +191,7 @@ php54-suhosin
 php54-tidy
 php54-xml
 php54-xmlrpc
+php54-xcache
 "
 
 LIST_PACKAGES_PYTHON31="
@@ -268,6 +271,13 @@ function install_ruby() {
   make
   make install
 	cd .. && rm -rf $RUBYVERSION
+}
+
+# Set PEAR options
+pear_set() {
+  CONFIG=$1
+  OPTION=$2
+  pear config-set $CONFIG $OPTION 2>> setup.log.debug 1>> setup.log
 }
 
 # === Pre-Flight ===
@@ -571,6 +581,12 @@ yellowheader " - Miscellaneous"
 rm -f /tmp/*.rpm
 chkconfig iptables on
 echo "export EDITOR=$FAVORITE_EDITOR" >> ~/.bash_profile
+
+# PEAR config since /tmp is not writeable
+mkdir -p $PEAR_DOWNLOAD_DIR/{download,build}
+pear_set download_dir "$PEAR_DOWNLOAD_DIR/download/"
+pear_set temp_dir "$PEAR_DOWNLOAD_DIR/build/"
+pear_set php_ini "/etc/php.ini"
 
 # I got lazy here...
 LISTENING_PORTS=$(netstat -tln | awk '{print $4}' | grep '^0.*' | cut -d: -f2 | sort | tr '\n' ' ')
