@@ -581,6 +581,15 @@ yellowheader " - Miscellaneous"
 rm -f /tmp/*.rpm
 chkconfig iptables on
 echo "export EDITOR=$FAVORITE_EDITOR" >> ~/.bash_profile
+cat <<BASHHISTORY >> ~/.bashrc
+
+# Make bash history better
+shopt -s histappend
+export HISTCONTROL=ignoreboth
+export HISTSIZE=10000
+export HISTTIMEFORMAT="%F %T "
+export PROMPT_COMMAND='history -a; history -n'
+BASHHISTORY
 
 # PEAR config since /tmp is not writeable
 mkdir -p $PEAR_DOWNLOAD_DIR/{download,build}
