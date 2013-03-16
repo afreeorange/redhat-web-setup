@@ -1,10 +1,10 @@
 __NOTOC__
 
-= Setup Script for RHEL-based Distros =
+= Setup Script for RHEL-based Web Servers =
 
 == Introduction ==
 
-A quick setup script for Red Hat-based distros I use for my servers. Compatible with 5.x and 6.x releases. Script assumes a base/minimal vanilla install. 
+A quick setup script for Red Hat-based web servers I used frequently. Compatible with 5.x and 6.x releases. Script assumes a base/minimal vanilla install. 
 
 Please edit the first few lines of the script to configure some options. If <code>INSTALL_BASIC_ONLY</code> is set to "yes", the script sets up:
 
