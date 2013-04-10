@@ -18,6 +18,13 @@ RUBYVERSION="ruby-1.9.3-p392"
 FAVORITE_EDITOR="vim"
 PEAR_DOWNLOAD_DIR="/root/pear"
 
+# Assuming the same proxy for HTTP/S and FTP
+PROXY_SERVER=""
+HTTP_PROXY=$PROXY_SERVER
+HTTPS_PROXY=$PROXY_SERVER
+FTP_PROXY=$PROXY_SERVER
+
+
 # --- Package options ---
 
 INSTALL_BASIC_ONLY="no"
@@ -28,6 +35,7 @@ INSTALL_MONGODB="yes"
 INSTALL_NGINX="yes"
 INSTALL_PHP_MYSQL="yes"
 INSTALL_POSTGRES="no"
+INSTALL_PYTHON27="yes"
 INSTALL_PYTHON3="yes"
 
 
@@ -111,6 +119,8 @@ db4-utils
 ImageMagick
 iptraf
 java-1.7.0-openjdk
+logrotate
+logwatch
 lsof
 lvm2
 mailx
@@ -136,6 +146,40 @@ unzip
 vim-enhanced
 yum-utils
 zip
+"
+
+LIST_PACKAGES_DEVELOPMENT="
+byacc
+curl-devel
+db4-devel
+expat-devel
+gcc-c++
+gdbm-devel
+glibc-devel
+libffi
+libffi-devel
+libicu
+libicu-devel
+libxml2
+libxml2-devel
+libxslt
+libxslt-devel
+libyaml
+libyaml-devel
+logrotate
+logwatch
+ncurses-devel
+openssl-devel
+perl-Time-HiRes
+python-devel
+qtwebkit
+qtwebkit-devel
+readline
+readline-devel
+redis
+sendmail-cf
+sqlite-devel
+tcl-devel
 "
 
 LIST_PACKAGES_EPEL="
@@ -194,6 +238,17 @@ php54-xmlrpc
 php54-xcache
 "
 
+LIST_PACKAGES_PYTHON27="
+python27
+python27-debug
+python27-devel
+python27-distribute
+python27-libs
+python27-test
+python27-tools
+tkinter27
+"
+
 LIST_PACKAGES_PYTHON31="
 python31
 python31-distribute
@@ -201,11 +256,13 @@ python31-tools
 tkinter31
 "
 
-LIST_PACKAGES_PYTHON32="
-python32
-python32-libs
-python32-tkinter
-python32-tools
+LIST_PACKAGES_PYTHON33="
+python33
+python33-devel
+python33-distribute
+python33-libs
+python33-tkinter
+python33-tools
 "
 
 LIST_PACKAGES_POSTGRES="
@@ -274,11 +331,12 @@ function install_ruby() {
 }
 
 # Set PEAR options
-pear_set() {
+function pear_set() {
   CONFIG=$1
   OPTION=$2
   pear config-set $CONFIG $OPTION 2>> setup.log.debug 1>> setup.log
 }
+
 
 # === Pre-Flight ===
 
@@ -291,7 +349,8 @@ if [ "$INSTALL_BASIC_ONLY" == "yes" ]; then
   INSTALL_NGINX="no"
   INSTALL_PHP_MYSQL="no"
   INSTALL_POSTGRES="no"
-  INSTALL_PYTHON3="yes"
+  INSTALL_PYTHON27="no"
+  INSTALL_PYTHON3="no"
 fi
 
 # --- Check for superuser ---
@@ -326,6 +385,15 @@ fi
 greenheader  "+ Stopping firewall service temporarily"
 service iptables stop &> /dev/null
 
+# --- Set up proxies
+greenheader "+ Setting up yum proxy"
+if [ ! -z $PROXY_SERVER ]; then 
+  echo -e "\nproxy=$PROXY_SERVER" >> /etc/yum.conf
+fi
+export http_proxy=$HTTP_PROXY
+export https_proxy=$HTTPS_PROXY
+export ftp_proxy=$FTP_PROXY
+
 # --- Update system ---
 greenheader  "+ Updating system"
 yumq "-y update yum python rpm"
@@ -349,7 +417,7 @@ yellowheader " - RepoForge"
 rpm_install http://packages.sw.be/rpmforge-release/rpmforge-release-0.5.2-2.el$VERSION_MAJOR.rf.$ARCH.rpm
 
 yellowheader " - IUS Community"
-rpm_install http://dl.iuscommunity.org/pub/ius/stable/Redhat/$VERSION_MAJOR/$ARCH/ius-release-1.0-10.ius.el$VERSION_MAJOR.noarch.rpm
+rpm_install http://dl.iuscommunity.org/pub/ius/stable/Redhat/$VERSION_MAJOR/$ARCH/ius-release-1.0-11.ius.el$VERSION_MAJOR.noarch.rpm
 
 yellowheader " - MongoDB Repo"
 cat > /etc/yum.repos.d/10gen.repo <<MONGOREPO
@@ -386,21 +454,15 @@ greenheader  "+ Installing packages"
 yellowheader " - Cleaning older packages"
 rpm -e --quiet --nodeps mysql-libs &> /dev/null
 for php_rpm in $(rpm -qa | grep php); do rpm -e $php_rpm --nodeps; done
+yum clean dbcache &> /dev/null # Prevents "database disk image is malformed"
 yumq "-y install mysqlclient16 mysql55-libs --enablerepo=ius" # Needed by postfix later
 
 # --- Base Repositories ---
-yellowheader " - Development tools and libraries"
-yum -y groupinstall "Development Tools" 2>> setup.log.debug 1>> setup.log # Couldn't figure out escaping strings...
-yumq "-y install vim-enhanced httpd readline readline-devel ncurses-devel gdbm-devel glibc-devel \
-tcl-devel openssl-devel curl-devel expat-devel db4-devel byacc \
-sqlite-devel gcc-c++ libyaml libyaml-devel libffi libffi-devel \
-libxml2 libxml2-devel libxslt libxslt-devel libicu libicu-devel \
-system-config-firewall-tui python-devel redis sudo wget \
-crontabs logwatch logrotate sendmail-cf qtwebkit qtwebkit-devel \
-perl-Time-HiRes"
-
 yellowheader " - Basic packages"
 yumq "-y install $LIST_PACKAGES_BASIC"
+yellowheader " - Development tools and libraries"
+yum -y groupinstall "Development Tools" 2>> setup.log.debug 1>> setup.log 
+yumq "-y install $LIST_PACKAGES_DEVELOPMENT "
 
 # --- External Repositories ---
 yellowheader " - Additional packages from external repositories"
@@ -419,7 +481,7 @@ if [ "$INSTALL_BASIC_ONLY" == "no" ]; then
   if [ "$INSTALL_PHP_MYSQL" == "yes" ]; then
     yellowheader "   PHP & MySQL"
     yumq "-y install $LIST_PACKAGES_MYSQL --enablerepo=ius"
-    yumq "-y install $LIST_PACKAGES_PHP --enablerepo=ius"
+    yumq "-y install $LIST_PACKAGES_PHP --enablerepo=ius --enablerepo=epel"
   fi
 
   if [ "$INSTALL_MONGODB" == "yes" ]; then
@@ -430,6 +492,8 @@ if [ "$INSTALL_BASIC_ONLY" == "no" ]; then
   if [ "$INSTALL_POSTGRES" == "yes" ]; then
     yellowheader "   PostgreSQL 9 Repo"
     yumq "-y install $LIST_PACKAGES_POSTGRES --enablerepo=pgdg91"
+    echo -e "Initializing postgres" >> setup.log
+    service postgresql-9.1 initdb 2>> setup.log.debug 1>> setup.log
   fi
 
   if [ "$INSTALL_NGINX" == "yes" ]; then
@@ -442,20 +506,23 @@ if [ "$INSTALL_BASIC_ONLY" == "no" ]; then
 else
   yellowheader "   PHP"
   yumq "-y install php54 php54-cli --enablerepo=ius"
+fi
 
+if [ "$INSTALL_PYTHON27" == "yes" ]; then
+  yellowheader "   Python 2.7"
+  yumq "-y install $LIST_PACKAGES_PYTHON27 --enablerepo=ius" 
 fi
 
 if [ "$INSTALL_PYTHON3" == "yes" ]; then
   yellowheader "   Python 3"
   if [ $VERSION_MAJOR == 5 ]; then
     yumq "-y install $LIST_PACKAGES_PYTHON31 --enablerepo=ius" 
+    [[ "$INSTALL_APACHE" == "yes" ]] && yumq "-y install python31-mod_wsgi --enablerepo=ius"
   else
-    yumq "-y install $LIST_PACKAGES_PYTHON32 --enablerepo=ius" 
+    yumq "-y install $LIST_PACKAGES_PYTHON33 --enablerepo=ius" 
+    [[ "$INSTALL_APACHE" == "yes" ]] && yumq "-y install python33-mod_wsgi --enablerepo=ius"
   fi
 
-  if [ "$INSTALL_APACHE" == "yes" ]; then
-    yumq "-y install python3*-mod_wsgi --enablerepo=ius"
-  fi
 fi
 
 yellowheader "   Ruby"
