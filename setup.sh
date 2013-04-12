@@ -111,6 +111,8 @@ db4-utils
 ImageMagick
 iptraf
 java-1.7.0-openjdk
+logrotate
+logwatch
 lsof
 lvm2
 mailx
@@ -130,12 +132,47 @@ python-setuptools
 rpcbind
 rsync
 sharutils
+sudo
 subversion
 tree
 unzip
 vim-enhanced
 yum-utils
 zip
+"
+
+LIST_PACKAGES_DEVEL="
+byacc
+crontabs
+curl-devel
+db4-devel
+expat-devel
+gcc-c++
+gdbm-devel
+glibc-devel
+libffi
+libffi-devel
+libicu
+libicu-devel
+libxml2
+libxml2-devel
+libxslt
+libxslt-devel
+libyaml
+libyaml-devel
+ncurses-devel
+openssl-devel
+perl-Time-HiRes
+python-devel
+qtwebkit
+qtwebkit-devel
+readline
+readline-devel
+redis
+sendmail-cf
+sqlite-devel
+system-config-firewall-tui
+tcl-devel
 "
 
 LIST_PACKAGES_EPEL="
@@ -274,7 +311,7 @@ function install_ruby() {
 }
 
 # Set PEAR options
-pear_set() {
+function pear_set() {
   CONFIG=$1
   OPTION=$2
   pear config-set $CONFIG $OPTION 2>> setup.log.debug 1>> setup.log
@@ -349,7 +386,7 @@ yellowheader " - RepoForge"
 rpm_install http://packages.sw.be/rpmforge-release/rpmforge-release-0.5.2-2.el$VERSION_MAJOR.rf.$ARCH.rpm
 
 yellowheader " - IUS Community"
-rpm_install http://dl.iuscommunity.org/pub/ius/stable/Redhat/$VERSION_MAJOR/$ARCH/ius-release-1.0-10.ius.el$VERSION_MAJOR.noarch.rpm
+rpm_install http://dl.iuscommunity.org/pub/ius/stable/Redhat/$VERSION_MAJOR/$ARCH/ius-release-1.0-11.ius.el$VERSION_MAJOR.noarch.rpm
 
 yellowheader " - MongoDB Repo"
 cat > /etc/yum.repos.d/10gen.repo <<MONGOREPO
@@ -391,13 +428,7 @@ yumq "-y install mysqlclient16 mysql55-libs --enablerepo=ius" # Needed by postfi
 # --- Base Repositories ---
 yellowheader " - Development tools and libraries"
 yum -y groupinstall "Development Tools" 2>> setup.log.debug 1>> setup.log # Couldn't figure out escaping strings...
-yumq "-y install vim-enhanced httpd readline readline-devel ncurses-devel gdbm-devel glibc-devel \
-tcl-devel openssl-devel curl-devel expat-devel db4-devel byacc \
-sqlite-devel gcc-c++ libyaml libyaml-devel libffi libffi-devel \
-libxml2 libxml2-devel libxslt libxslt-devel libicu libicu-devel \
-system-config-firewall-tui python-devel redis sudo wget \
-crontabs logwatch logrotate sendmail-cf qtwebkit qtwebkit-devel \
-perl-Time-HiRes"
+yumq "-y install $LIST_PACKAGES_DEVEL"
 
 yellowheader " - Basic packages"
 yumq "-y install $LIST_PACKAGES_BASIC"
