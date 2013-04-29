@@ -63,6 +63,7 @@ mongod
 mysqld
 nginx
 ntpd
+php-fpm
 postgresql-9.1
 "
 
@@ -209,6 +210,7 @@ php54
 php54-cli
 php54-common
 php54-devel
+php54-fpm
 php54-gd
 php54-imap
 php54-intl
