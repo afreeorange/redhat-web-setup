@@ -27,21 +27,17 @@ INSTALL_APACHE="yes"
 INSTALL_MONGODB="yes"
 INSTALL_NGINX="yes"
 INSTALL_PHP_MYSQL="yes"
-INSTALL_POSTGRES="no"
+INSTALL_POSTGRES="yes"
 INSTALL_PYTHON3="yes"
 
 
 # === Lists ===
 
 LIST_NTP_SERVERS="
-time.nist.gov
-ns.arc.nasa.gov
-tick.usno.navy.mil
-tock.usno.navy.mil
-bernina.ethz.ch
-ntp.cuhk.edu.hk
-ntp.syd.dms.csiro.au
-ntps1.pads.ufrj.br
+0.pool.ntp.org
+1.pool.ntp.org
+2.pool.ntp.org
+3.pool.ntp.org
 "
 
 LIST_REPO_KEYS="
@@ -134,6 +130,7 @@ rsync
 sharutils
 sudo
 subversion
+telnet
 tree
 unzip
 vim-enhanced
