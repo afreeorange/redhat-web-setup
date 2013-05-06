@@ -14,9 +14,11 @@ SSH_KEY_PASSPHRASE=""
 DISABLE_IPV6="yes"
 ALLOW_SSH_ROOT_LOGIN="no"
 VERBOSE_BOOT="no"
+ALLOW_UNSIGNED_PACKAGES="yes"
 RUBYVERSION="ruby-1.9.3-p392"
 FAVORITE_EDITOR="vim"
 PEAR_DOWNLOAD_DIR="/root/pear"
+VARNISH_RELEASE_RPM="http://repo.varnish-cache.org/redhat/varnish-3.0/el5/noarch/varnish-release-3.0-1.noarch.rpm"
 
 # --- Package options ---
 
@@ -29,6 +31,7 @@ INSTALL_NGINX="yes"
 INSTALL_PHP_MYSQL="yes"
 INSTALL_POSTGRES="yes"
 INSTALL_PYTHON3="yes"
+INSTALL_VARNISH="yes"
 
 
 # === Lists ===
@@ -273,10 +276,16 @@ function generate_password() {
   echo $(tr -dc A-Za-z0-9_ < /dev/urandom | head -c 20 | xargs) 
 }
 
-# Keep installs quiet
+# Keep installs quiet. Tries to install stuff with a GPG check first. If 
+# ALLOW_UNSIGNED_PACKAGES is set, tries without the check.
 function yumq() {
   COMMAND=$1
   yum $COMMAND 2>> setup.log.debug 1>> setup.log 
+  if [ $? -ne 0 ]; then
+     if [ "$ALLOW_UNSIGNED_PACKAGES" == "yes" ]; then
+       yum --nogpgcheck $COMMAND 2>> setup.log.debug 1>> setup.log 
+     fi
+  fi
 }
 function rpm_install() {
   RESOURCE=$1
@@ -284,6 +293,11 @@ function rpm_install() {
   # Can't do rpm -ivh with RPMforge or PGDG; have to download first
   wget --quiet --tries=3 -P /tmp $RESOURCE
   rpm -ivh /tmp/$(basename $RESOURCE) 2>> setup.log.debug 1>> setup.log
+  if [ $? -ne 0 ]; then
+     if [ "$ALLOW_UNSIGNED_PACKAGES" == "yes" ]; then
+       rpm --nosignature -ivh /tmp/$(basename $RESOURCE) 2>> setup.log.debug 1>> setup.log
+     fi
+  fi
 }
 
 # Start & stop services
@@ -471,6 +485,12 @@ if [ "$INSTALL_BASIC_ONLY" == "no" ]; then
     sed -i 's/listen.*80/listen 8888/' /etc/nginx/conf.d/default.conf
   fi
 
+  if [ "$INSTALL_VARNISH" == "yes" ]; then
+    yellowheader "   Varnish"
+    rpm --nosignature -i $VARNISH_RELEASE_RPM 
+    yumq "-y install varnish"
+  fi
+
 else
   yellowheader "   PHP"
   yumq "-y install php54 php54-cli --enablerepo=ius"
@@ -642,3 +662,4 @@ cyanheader   "+ Please do the following NOW:
   - Copy the AIDE files (/var/lib/aide) to a secure location
   - Change your root password. Suggestion: $PASSWORD_ROOT
 + REBOOT when you're done!\n"
+
