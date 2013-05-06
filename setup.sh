@@ -64,6 +64,7 @@ mysqld
 nginx
 ntpd
 php-fpm
+postfix
 postgresql-9.1
 "
 
