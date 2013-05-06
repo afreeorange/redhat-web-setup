@@ -187,6 +187,7 @@ p7zip
 p7zip-plugins
 pbzip2
 puppet
+python-virtualenv
 rkhunter
 sysstat
 "
