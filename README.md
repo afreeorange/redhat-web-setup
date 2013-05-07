@@ -30,7 +30,6 @@ Defaults
 -   For SSH:
     -   Root login is disabled
     -   Port is set to **9853** (RHEL = 18-8-5-12)
-
 -   NTP uses a few servers [off this page](http://infohost.nmt.edu/~armiller/timeserv.htm)
 -   Nginx default port is set to **8888**
 
