@@ -155,6 +155,9 @@ db4-devel
 expat-devel
 gcc-c++
 gdbm-devel
+glib2
+glib2-devel
+glibc
 glibc-devel
 libffi
 libffi-devel
