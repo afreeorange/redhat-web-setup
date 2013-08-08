@@ -28,6 +28,7 @@ INSTALL_MONGODB="yes"
 INSTALL_NGINX="yes"
 INSTALL_PHP_MYSQL="yes"
 INSTALL_POSTGRES="yes"
+INSTALL_PYTHON27="yes"
 INSTALL_PYTHON3="yes"
 
 
@@ -230,6 +231,18 @@ php54-tidy
 php54-xml
 php54-xmlrpc
 php54-xcache
+"
+
+LIST_PACKAGES_PYTHON27="
+python27
+python27-debug
+python27-devel
+python27-distribute
+python27-libs
+python27-lxml
+python27-test
+python27-tools
+tkinter27
 "
 
 LIST_PACKAGES_PYTHON31="
@@ -475,6 +488,15 @@ else
   yellowheader "   PHP"
   yumq "-y install php54 php54-cli --enablerepo=ius"
 
+fi
+
+if [ "$INSTALL_PYTHON27" == "yes" ]; then
+  yellowheader "   Python 2.7"
+  yumq "-y install $LIST_PACKAGES_PYTHON27 --enablerepo=ius" 
+
+  if [ "$INSTALL_APACHE" == "yes" ]; then
+    yumq "-y install python27-mod_wsgi --enablerepo=ius"
+  fi
 fi
 
 if [ "$INSTALL_PYTHON3" == "yes" ]; then
