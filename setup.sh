@@ -195,6 +195,7 @@ sysstat
 
 LIST_PACKAGES_REPOFORGE="
 bcrypt
+ffmpeg
 iftop
 pv
 rar
