@@ -51,7 +51,7 @@ Packages Installed
 
 ### Basic Packages
 
-* Languages: Python 2.7 & 3.1 (RHEL5) or 3.3 (RHEL6), PHP 5.4, Ruby 1.9.3, Perl 5.10,
+* Languages: Python 2.7 & 3.1 (RHEL5) or 3.3 (RHEL6), PHP 5.4, Ruby (latest snapshot), Perl 5.10,
     Java 1.7 (OpenJDK)
 * Monitoring utilities: htop, ntop, iotop, ncdu, sysstat, iftop,
     iptraf
@@ -65,7 +65,7 @@ Packages Installed
 ### Additional packages
 
 * Databases: MongoDB 2.2, MySQL 5.5, and PostgreSQL 9.1
-* The Apache 2.2 and Nginx v1.2 web servers
+* The Apache and Nginx web servers
 
 SELinux
 -------

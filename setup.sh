@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Setup script for RHEL-based distros 
+# Setup script for RHEL-based distros
 # Compatible with 5.x & 6.x releases
 # Assumes a base/minimal install
 # Nikhil Anand <nikhil@mantralay.org>
@@ -14,7 +14,6 @@ SSH_KEY_PASSPHRASE=""
 DISABLE_IPV6="yes"
 ALLOW_SSH_ROOT_LOGIN="no"
 VERBOSE_BOOT="no"
-RUBYVERSION="ruby-1.9.3-p392"
 FAVORITE_EDITOR="vim"
 PEAR_DOWNLOAD_DIR="/root/pear"
 
@@ -284,13 +283,13 @@ function blueheader()   { echo -e "\n$1\n$DASHES2\n" >> setup.log; echo -e "\E[3
 
 # Decent, random passwords
 function generate_password() {
-  echo $(tr -dc A-Za-z0-9_ < /dev/urandom | head -c 20 | xargs) 
+  echo $(tr -dc A-Za-z0-9_ < /dev/urandom | head -c 20 | xargs)
 }
 
 # Keep installs quiet
 function yumq() {
   COMMAND=$1
-  yum $COMMAND 2>> setup.log.debug 1>> setup.log 
+  yum $COMMAND 2>> setup.log.debug 1>> setup.log
 }
 function rpm_install() {
   RESOURCE=$1
@@ -314,15 +313,15 @@ function stop_service() {
 
 # Compile and install Ruby (/tmp is noexec, so use home)
 function install_ruby() {
-  cd 
-  wget -O - http://ftp.ruby-lang.org/pub/ruby/1.9/$RUBYVERSION.tar.gz | tar -xzvf -
-  chown -R 0:0 $RUBYVERSION/
-  cd $RUBYVERSION
+  cd
+  wget -O - http://ftp.ruby-lang.org/pub/ruby/stable-snapshot.tar.gz | tar -xzvf -
+  chown -R 0:0 ruby-*
+  cd ruby-*
   chmod +x ./configure
   ./configure
   make
   make install
-	cd .. && rm -rf $RUBYVERSION
+	cd .. && rm -rf ruby-*
 }
 
 # Set PEAR options
@@ -493,7 +492,7 @@ fi
 
 if [ "$INSTALL_PYTHON27" == "yes" ]; then
   yellowheader "   Python 2.7"
-  yumq "-y install $LIST_PACKAGES_PYTHON27 --enablerepo=ius" 
+  yumq "-y install $LIST_PACKAGES_PYTHON27 --enablerepo=ius"
 
   if [ "$INSTALL_APACHE" == "yes" ]; then
     yumq "-y install python27-mod_wsgi --enablerepo=ius"
@@ -503,9 +502,9 @@ fi
 if [ "$INSTALL_PYTHON3" == "yes" ]; then
   yellowheader "   Python 3"
   if [ $VERSION_MAJOR == 5 ]; then
-    yumq "-y install $LIST_PACKAGES_PYTHON31 --enablerepo=ius" 
+    yumq "-y install $LIST_PACKAGES_PYTHON31 --enablerepo=ius"
   else
-    yumq "-y install $LIST_PACKAGES_PYTHON32 --enablerepo=ius" 
+    yumq "-y install $LIST_PACKAGES_PYTHON32 --enablerepo=ius"
   fi
 
   if [ "$INSTALL_APACHE" == "yes" ]; then
@@ -514,7 +513,7 @@ if [ "$INSTALL_PYTHON3" == "yes" ]; then
 fi
 
 yellowheader "   Ruby"
-install_ruby 2>> setup.log.debug 1>> setup.log 
+install_ruby 2>> setup.log.debug 1>> setup.log
 
 yellowheader " - Miscellaneous"
 wget --tries=2 --quiet -O /usr/local/bin/ack http://betterthangrep.com/ack-standalone && chmod 755 /usr/local/bin/ack
@@ -534,7 +533,7 @@ rm -rf /var/tmp
 ln -s /tmp /var/tmp
 
 yellowheader " - Securing /dev/shm"
-umount /dev/shm 
+umount /dev/shm
 rm -rf /dev/shm
 mkdir /dev/shm
 mount -t tmpfs -o rw,noexec,nosuid tmpfs /dev/shm
@@ -571,7 +570,7 @@ yellowheader " - Disabling ctrl+alt+del for shutdown"
 if [ $VERSION_MAJOR == 5 ]; then
   sed -i 's/^ca::ctrlaltdel/#ca::ctrlaltdel/' /etc/inittab
 else
-  sed -i 's/^exec/# exec/' /etc/init/control-alt-delete.conf 
+  sed -i 's/^exec/# exec/' /etc/init/control-alt-delete.conf
 fi
 
 if [ "$DISABLE_IPV6" == "yes" ]; then
@@ -659,7 +658,7 @@ blueheader   "+ All done!"
 cyanheader   "+ Please do the following NOW:
   - Configure your firewall
     ~ Make sure you allow the SSH port you've chosen (port $SSH_PORT)!
-    ~ Your applications are listening on the following ports: 
+    ~ Your applications are listening on the following ports:
       $LISTENING_PORTS
   - Set up MySQL if installed. Here's a password: $PASSWORD_MYSQL
   - Copy the AIDE files (/var/lib/aide) to a secure location
